@@ -12,6 +12,7 @@ import java.awt.event.MouseEvent;
 public class PaintInk extends Window {
     public static Ink.List inkList = new Ink.List();
     public static Shape.Prototype.List pList = new Shape.Prototype.List();
+    public static String recognized = "";
 
     public PaintInk() {
         super("PaintInk", UC.screenWeight,UC.screenHeight);
@@ -20,7 +21,7 @@ public class PaintInk extends Window {
     public void paintComponent(Graphics g){
         G.fillBackground(g,Color.white);
         g.setColor(Color.red);
-        g.drawString("Points :" + Ink.BUFFER.n,600,30);
+//        g.drawString("Points :" + Ink.BUFFER.n,600,30);
 //        G.VS vs = new G.VS(100,100,100,100);
 //        G.V.T.set(Ink.BUFFER.bbox,vs);
 //        G.PL pl = new G.PL(25);
@@ -31,6 +32,7 @@ public class PaintInk extends Window {
         pList.show(g);
 //        inkList.show(g);//鼠标释放后是否仍显示线条
         Ink.BUFFER.show(g);
+        g.drawString(recognized,700,40);
 //        if(Ink.BUFFER.n>0){
 //            Ink.Norm norm = new Ink.Norm();
 //            norm.drawAt(g,new G.VS(500,30,100,100));
@@ -55,17 +57,19 @@ public class PaintInk extends Window {
     public void mouseReleased(MouseEvent me){
 //      inkList.add(new Ink());
         Ink ink = new Ink();
-        inkList.add(ink);
-        Shape.Prototype proto;
-        if(pList.bestDist(ink.norm) < UC.noMathchDist) {
-            Shape.Prototype.List.bestMatch.blend(ink.norm);
-            proto = Shape.Prototype.List.bestMatch;
-        }
-        else{
-            proto = new Shape.Prototype();
-            pList.add(proto);
-        }
-        ink.norm = proto;
+        Shape s = Shape.recognize(ink);
+        recognized = "Recognized:" + ((s == null) ? "UNKNOWN" : s.name);
+//        inkList.add(ink);
+//        Shape.Prototype proto;
+//        if(pList.bestDist(ink.norm) < UC.noMathchDist) {
+//            Shape.Prototype.List.bestMatch.blend(ink.norm);
+//            proto = Shape.Prototype.List.bestMatch;
+//        }
+//        else{
+//            proto = new Shape.Prototype();
+//            pList.add(proto);
+//        }
+//        ink.norm = proto;
         repaint();
     }
 }

@@ -23,7 +23,7 @@ public class ShapeTrainer extends Window {
     }
 
     public static void setStatus(){
-        currentStatus = (currentName.equals("") || currentName.equals("DOT")) ? ILLEGAL : UNKNOWN;
+        currentStatus = Shape.Database.isLegal(currentName) ? ILLEGAL : UNKNOWN;
         if(currentStatus == UNKNOWN){
             if(Shape.DB.containsKey(currentName)){
                 currentStatus = KNOWN;
@@ -64,23 +64,26 @@ public class ShapeTrainer extends Window {
         Ink.BUFFER.drag(me.getX(),me.getY());
     }
     public void mouseReleased(MouseEvent me){
-        if(currentStatus != ILLEGAL){
-            Ink ink = new Ink();
-            Shape.Prototype proto;
-            if(pList == null){
-                Shape s = new Shape(currentName);
-                Shape.DB.put(currentName,s);
-                pList = s.prototypes;
-            }
-            if(pList.bestDist(ink.norm) < UC.noMathchDist){
-                proto = Shape.Prototype.List.bestMatch;
-                proto.blend(ink.norm);
-            }else{
-                proto = new Shape.Prototype();
-                pList.add(proto);
-            }
-            setStatus();
-        }
+//        if(currentStatus != ILLEGAL){
+//            Ink ink = new Ink();
+//            Shape.Prototype proto;
+//            if(pList == null){
+//                Shape s = new Shape(currentName);
+//                Shape.DB.put(currentName,s);
+//                pList = s.prototypes;
+//            }
+//            if(pList.bestDist(ink.norm) < UC.noMathchDist){
+//                proto = Shape.Prototype.List.bestMatch;
+//                proto.blend(ink.norm);
+//            }else{
+//                proto = new Shape.Prototype();
+//                pList.add(proto);
+//            }
+//            setStatus();
+//        }
+        Ink ink = new Ink();
+        Shape.DB.train(currentName,ink.norm);
+        setStatus();
         repaint();
     }
 }

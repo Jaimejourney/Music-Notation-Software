@@ -10,4 +10,5 @@ public class UC {
     public static int noMathchDist = 100000;//chosen based on normSampleSize,normCoordMax
     public static int dotThreshold = 6;
     public static final String shapeDBFileName = "/Users/yikaizhu/IdeaProjects/Marlin/ShapeDB.bin";
+    public static int noBid= 10000;
 }
