@@ -1,10 +1,7 @@
 package marlin;
 
 import marlin.graphicsLib.Window;
-import marlin.sandbox.PaintInk;
-import marlin.sandbox.ShapeTrainer;
-import marlin.sandbox.Squares;
-import marlin.sandbox.simpleReaction;
+import marlin.sandbox.*;
 
 public class Main {
 
@@ -14,7 +11,7 @@ public class Main {
 //        Window.PANEL = new PaintInk();
 //        Window.PANEL = new PaintInk();
 //        Window.PANEL = new ShapeTrainer();
-        Window.PANEL = new simpleReaction();
+        Window.PANEL = new Music1();
         Window.launch();
     }
 }

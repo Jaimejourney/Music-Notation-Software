@@ -1,6 +1,6 @@
 package marlin.graphicsLib;
 
-import marlin.reaction.Gesture;
+import marlin.Reaction.Gesture;
 
 import java.awt.*;
 
