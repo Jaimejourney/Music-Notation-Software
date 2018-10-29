@@ -15,4 +15,6 @@ public class UC {
     public static int noBid= 10000;
     public static Color inkColor = Color.BLUE;
     public static int defaultStaffLineSpace = 8;
+    public static int barToMarginSnap = 20;
+//    public static int defaultH = 8;
 }
