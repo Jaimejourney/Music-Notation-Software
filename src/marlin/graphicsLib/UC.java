@@ -16,5 +16,7 @@ public class UC {
     public static Color inkColor = Color.BLUE;
     public static int defaultStaffLineSpace = 8;
     public static int barToMarginSnap = 20;
+    public static String FontName = "sinfonia";
+    public static int snapTime = 20;
 //    public static int defaultH = 8;
 }

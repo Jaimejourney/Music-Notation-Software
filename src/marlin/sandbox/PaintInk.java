@@ -36,12 +36,11 @@ public class PaintInk extends Window {
 //            Shape.Prototype.List.bestMatch.blend(ink.norm);
 //            proto = Shape.Prototype.List.bestMatch;
 //        }
-//        else{
+//        else{public int h()
 //            proto = new Shape.Prototype();
 //            pList.add(proto);
 //        }
 //        ink.norm = proto;
         repaint();
     }
-
 }
