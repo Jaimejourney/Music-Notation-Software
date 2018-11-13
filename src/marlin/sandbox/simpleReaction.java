@@ -63,7 +63,7 @@ public class simpleReaction extends Window {
 
                 @Override
                 public void act(Gesture gesture) {
-                    Box.this.delete();
+                    Box.this.deleteMass();
                 }
             });
 

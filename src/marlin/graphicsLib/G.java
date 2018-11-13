@@ -56,8 +56,8 @@ public class G{
         public VS(int x, int y, int w, int h){loc = new V(x,y); size = new V(w,h);}
         public void fill(Graphics g, Color c){g.setColor(c); g.fillRect(loc.x, loc.y, size.x, size.y);}
         public boolean hit(int x, int y){return loc.x<=x && loc.y <=y && x<=(loc.x+size.x) && y<=(loc.y+size.y);}
-        public int lox(){return loc.x;}
-        public int hix(){return loc.x + size.x;}
+        public int xLow(){return loc.x;}
+        public int xHi(){return loc.x + size.x;}
         public int midx(){return (loc.x + loc.x + size.x)/2;}
         public int loy(){return loc.y;}
         public int hiy(){return loc.y + size.y;}

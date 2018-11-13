@@ -9,9 +9,9 @@ import marlin.graphicsLib.Window;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.stream.Stream;
 
 public class Music1 extends Window {
 
@@ -95,6 +95,7 @@ public class Music1 extends Window {
         // -------------Music---------------
         public static class Sys extends Mass {
             public ArrayList<Staff> staffs = new ArrayList<>();
+            public Stem.List stems = new Stem.List();
             public Time.List times;
             public int ndx;
             public Sys() {
@@ -393,7 +394,12 @@ public class Music1 extends Window {
                     int y = h.y();
                     if (y > y1 && y < y2) { h.joinStem(s); }
                 }
-                s.setWrongSide();
+                if(s.heads.size() ==0){
+                    s.deletemStem();
+                }else{
+                    s.staff.sys.stems.addStem(s);
+                    s.setWrongSide();
+                }
             }
 
             public void unStemHeads(int y1, int y2) {
@@ -456,8 +462,8 @@ public class Music1 extends Window {
 
                     public int bid(Gesture g) {
                         int y = g.vs.midy();
-                        int x1 = g.vs.lox();
-                        int x2 = g.vs.hix();
+                        int x1 = g.vs.xLow();
+                        int x2 = g.vs.xHi();
                         int x = Rest.this.time.x;
                         if (x1 > x || x2 < x) return UC.noBid;
                         return Math.abs(y - Rest.this.staff.yLine(4));
@@ -472,8 +478,8 @@ public class Music1 extends Window {
 
                     public int bid(Gesture g) {
                         int y = g.vs.midy();
-                        int x1 = g.vs.lox();
-                        int x2 = g.vs.hix();
+                        int x1 = g.vs.xLow();
+                        int x2 = g.vs.xHi();
                         int x = Rest.this.time.x;
                         if (x1 > x || x2 < x) return UC.noBid;
                         return Math.abs(y - Rest.this.staff.yLine(4));
@@ -562,12 +568,35 @@ public class Music1 extends Window {
                         }
                     }
                 });
+
+                addReaction(new Reaction("DOT") {
+                    @Override
+                    public int bid(Gesture g) {
+                        int xH = Head.this.x(), yH =Head.this.y(), h = Head.this.staff.H(), w = Head.this.W();
+                        int x = g.vs.midx(), y = g.vs.midy();
+                        if(x < xH || x > xH + 2*w || y < yH - h || y > yH + h){
+                            return UC.noBid;
+                        }
+                        return Math.abs(xH + w - x) + Math.abs(yH - y);
+                    }
+
+                    @Override
+                    public void act(Gesture g) {
+                        if(Head.this.stem != null){Head.this.stem.cycleDot();}
+                }
+                });
             }
 
             public void show(Graphics g) {
                 int h = staff.H();
 //                Glyph.HEAD_Q.showAt(g, h, time.x, line*h + staff.yTop());
                 (forcedGlyph != null? forcedGlyph: normalGlyph()).showAt(g, h, x(), y());
+                if(stem != null){
+                    int offSet =UC.restFirstDot, sp = UC.dotSpace;
+                    for (int i = 0; i < stem.nDot; i++) {
+                        g.fillOval(time.x+offSet + i*sp, y(),h/2,h/2);
+                    }
+                }
             }
 
             public void joinStem(Stem s) {
@@ -579,11 +608,12 @@ public class Music1 extends Window {
             public void unStem() {
                 if (stem == null) { return; }
                 stem.heads.remove(this);
+                if(stem.heads.size() == 0) {stem.deletemStem();}
                 stem = null;
             }
 
             public int x() {
-                if (wrongSide == false) { return time.x; }
+                if (stem == null || stem.heads.size() == 0 || !wrongSide ) { return time.x; }
                 return time.x + (stem.isUp? W(): -W());
             }
 
@@ -604,7 +634,7 @@ public class Music1 extends Window {
 
             public void deleteHead() {
                 time.heads.remove(this);
-                delete();
+                deleteMass();
             }
 
             public int compareTo(Head h) {
@@ -612,22 +642,85 @@ public class Music1 extends Window {
             }
         }
 
-        public static class Stem extends Duration {
+        public static class Stem extends Duration implements Comparable<Stem>{
             public ArrayList<Head> heads = new ArrayList<>();
             public boolean isUp = true;
             public Staff staff;
+            public Beam beam = null;
 
             public Stem(Staff staff, boolean up, Time time) {
                 super(time);
                 this.staff = staff;
                 isUp = up;
+//                staff.sys.stems.addStem(this);  this is a bug,stem is added in stemHead()
+
+                addReaction(new Reaction("E-E") {
+                    @Override
+                    public int bid(Gesture g) {
+                        int x1,x2,y,xS,y1,y2;
+                        x1 =g.vs.xLow();
+                        x2 =g.vs.xHi();
+                        y = g.vs.midy();
+                        xS =Stem.this.heads.get(0).time.x;
+                        y1 =Stem.this.ylow();
+                        y2 =Stem.this.yHi();
+                        if(x1 > xS || x2 < xS){return UC.noBid;}
+                        if(y < y1 || y > y2){return UC.noBid;}
+
+                        return 60 + Math.abs(y-(y1+y2)/2);
+                    }
+
+                    @Override
+                    public void act(Gesture g) {
+                        Stem.this.incFlag();
+
+                    }
+                });
+
+                addReaction(new Reaction("W-W") {
+                    @Override
+                    public int bid(Gesture g) {
+                        int x1,x2,y,xS,y1,y2;
+                        x1 =g.vs.xLow();
+                        x2 =g.vs.xHi();
+                        y = g.vs.midy();
+                        xS =Stem.this.heads.get(0).time.x;
+                        y1 =Stem.this.ylow();
+                        y2 =Stem.this.yHi();
+                        if(x1 > xS || x2 < xS){return UC.noBid;}
+                        if(y < y1 || y > y2){return UC.noBid;}
+
+                        return 60 + Math.abs(y-(y1+y2)/2);
+                    }
+
+                    @Override
+                    public void act(Gesture g) {
+                        Stem.this.decFlag();
+                    }
+                });
+            }
+
+            public int compareTo(Stem stem){
+                return x() - stem.x();
+            }
+
+            public void deletemStem(){
+                staff.sys.stems.remove(this);
+                this.deleteMass();
             }
 
             public void show(Graphics g) {
                 if (nFlag > -2 && heads.size() > 0) {
-                    int x = x(), yH = yFirstHead(), yB = yBeamEnd();
+                    int x = x(), yH = yFirstHead(), yB = yBeamEnd(),h = staff.H();
                     g.drawLine(x, yH, x, yB);
+                    if(nFlag > 0){
+                        if(nFlag == 1){(isUp ? Glyph.FLAG1D : Glyph.FLAG1U).showAt(g,h,x,yB);}
+                        if(nFlag == 2){(isUp ? Glyph.FLAG2D : Glyph.FLAG2U).showAt(g,h,x,yB);}
+                        if(nFlag == 3){(isUp ? Glyph.FLAG3D : Glyph.FLAG3U).showAt(g,h,x,yB);}
+                        if(nFlag == 4){(isUp ? Glyph.FLAG4D : Glyph.FLAG4U).showAt(g,h,x,yB);}
+                    }
                 }
+
             }
 
             public Head firstHead() {
@@ -637,6 +730,10 @@ public class Music1 extends Window {
             public Head lastHead() {
                 return heads.get(isUp? 0: heads.size()-1);
             }
+
+            public int ylow(){return isUp ? yBeamEnd():yFirstHead();}
+
+            public int yHi(){return isUp? yFirstHead():yBeamEnd();}
 
             public int yFirstHead() {
                 Head h = firstHead();
@@ -677,9 +774,89 @@ public class Music1 extends Window {
                 while (i != last) {
                     i += next;
                     Head nH = heads.get(i);
-                    nH.wrongSide = Math.abs(nH.line - pH.line) == 1 && !pH.wrongSide;
+                    nH.wrongSide = nH.staff == pH.staff && Math.abs(nH.line - pH.line) == 1 && !pH.wrongSide;
                     pH = nH;
                 }
+            }
+
+            public static class List extends ArrayList<Stem>{
+                public int yMin = Integer.MAX_VALUE,yMax = Integer.MIN_VALUE;
+                public void addStem(Stem s){
+                    add(s);
+                    int yF = s.yFirstHead(), yB = s.yBeamEnd();
+                    if(yF < yMin){ yMin = yF;}
+                    if(yF > yMax){ yMax = yB;}
+                    if(yB < yMin){ yMin = yB;}
+                    if(yB > yMax){ yMax = yB;}
+                }
+                public void sort(){
+                    Collections.sort(this);
+                }
+
+            }
+        }
+
+        public static class Beam extends Mass{
+
+            public Stem.List stems = new Stem.List();
+
+            public Beam(Stem s1,Stem s2){
+                super("NOTE");
+                stems.addStem(s1);
+                stems.addStem(s2);
+                stems.sort();
+            }
+
+            public static int mX1,mY1,mX2,mY2;
+
+            public static int yOfX(int x,int x1,int y1,int x2,int y2){
+                int dy = y2 - y1, dx = x2 -x1;
+                return (x - x1)*dy / dx + y1;
+            }
+
+            public static int yOfX(int x){
+                int dy = mY2 - mY1, dx = mX2 -mX1;
+                return (x - mX1)*dy / dx + mY1;
+            }
+
+            public static void setMasterBeam(int x1,int y1,int x2,int y2){
+                mX1 = x1;
+                mX2 =x2;
+                mY1 =y1;
+                mY2 = y2;
+            }
+
+            public void setMasterBeam(){
+                mX1 = first().x();
+                mY1 = first().yBeamEnd();
+                mX2 = last().x();
+                mY2 = last().yBeamEnd();
+            }
+
+            public Stem first(){return stems.get(0);}
+
+            public Stem last(){return stems.get(stems.size()-1);}
+
+            public void deleteBeam(){
+                for(Stem s:stems){
+                    s.beam = null;
+                }
+                deleteMass();
+            }
+
+            @Override
+            public void show(Graphics g) {
+
+            }
+
+            @Override
+            public Stream<Reaction> stream() {
+                return null;
+            }
+
+            @Override
+            public Stream<Reaction> parallelStream() {
+                return null;
             }
         }
     }

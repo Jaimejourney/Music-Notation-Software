@@ -12,7 +12,7 @@ public abstract class Mass extends Reaction.List implements I.Show{
             this.layer.add(this);
         }
     }
-    public void delete(){
+    public void deleteMass(){
         this.layer.remove(this);
         clearAll();     //clears everything in the Reaction list of the mass
     }
