@@ -75,13 +75,21 @@ public class Music1 extends Window {
         });
     }
 
+    static int[] xPoly = {100,200,200,100};
+    static int[] yPoly = {50,70,80,60};
+    static Polygon poly = new Polygon(xPoly,yPoly,4);
+
     public void paintComponent(Graphics g) {
         G.fillBackground(g, Color.WHITE);
         g.setColor(Color.BLACK);
         Ink.BUFFER.show(g);
         Layer.ALL.show(g);
-        int H = 8;
+        int H = 8,x1=100,x2=300;
         Glyph.CLEF_G.showAt(g, H, -100, PAGE.top + 4*H);
+        Music.Beam.setMasterBeam(x1,G.rnd(50)+100,x2,G.rnd(50)+100);
+        Music.Beam.drawBeamStack(g,0,1,x1,x2,H);
+        g.setColor(Color.red);
+        Music.Beam.drawBeamStack(g,1,3,x1+20,x2-20,H);
 //        Glyph.HEAD_Q.showAt(g, H, 200, PAGE.top + 4*H);
 //        g.drawRect(200, PAGE.top + 3*H, 24*H/10, 2*H);
     }
@@ -388,19 +396,19 @@ public class Music1 extends Window {
             public ArrayList<Head> heads = new ArrayList<>();
             private Time(Sys sys, int x) { this.x = x; sys.times.add(this); }
 
-            public void stemHeads(Staff staff, boolean up, int y1, int y2) {
-                Stem s = new Stem(staff, up, this);
-                for (Head h : heads) {
-                    int y = h.y();
-                    if (y > y1 && y < y2) { h.joinStem(s); }
-                }
-                if(s.heads.size() ==0){
-                    s.deletemStem();
-                }else{
-                    s.staff.sys.stems.addStem(s);
-                    s.setWrongSide();
-                }
-            }
+//            public void stemHeads(Staff staff, boolean up, int y1, int y2) {
+//                Stem s = new Stem(staff, up, this);
+//                for (Head h : heads) {
+//                    int y = h.y();
+//                    if (y > y1 && y < y2) { h.joinStem(s); }
+//                }
+//                if(s.heads.size() ==0){
+//                    s.deletemStem();
+//                }else{
+//                    s.staff.sys.stems.addStem(s);
+//                    s.setWrongSide();
+//                }
+//            }
 
             public void unStemHeads(int y1, int y2) {
                 for (Head h : heads) {
@@ -439,12 +447,10 @@ public class Music1 extends Window {
         }
 
         public static abstract class Duration extends Mass {
-            public Time time;
             public int nFlag = 0;
             public int nDot = 0;
-            public Duration(Time time) {
+            public Duration() {
                 super("NOTE");
-                this.time = time;
             }
             public abstract void show(Graphics g);
             public void incFlag() { if (nFlag < 4) nFlag++; }
@@ -455,8 +461,10 @@ public class Music1 extends Window {
         public static class Rest extends Duration {
             public Staff staff;
             public int line = 4;
+            public Time time;
             public Rest(Staff staff, Time t) {
-                super(t);
+                super();
+                time = t;
                 this.staff = staff;
                 addReaction(new Reaction("E-E") {
 
@@ -599,11 +607,11 @@ public class Music1 extends Window {
                 }
             }
 
-            public void joinStem(Stem s) {
-                unStem();
-                s.heads.add(this);
-                stem = s;
-            }
+//            public void joinStem(Stem s) {
+//                unStem();
+//                s.heads.add(this);
+//                stem = s;
+//            }
 
             public void unStem() {
                 if (stem == null) { return; }
@@ -648,10 +656,17 @@ public class Music1 extends Window {
             public Staff staff;
             public Beam beam = null;
 
-            public Stem(Staff staff, boolean up, Time time) {
-                super(time);
+            public Stem(Staff staff,ArrayList<Head> heads,boolean up) {
+                super();
                 this.staff = staff;
                 isUp = up;
+                for(Head h:heads){
+                    h.unStem();
+                    h.stem = this;
+                }
+                this.heads = heads;
+                staff.sys.stems.addStem(this);
+                setWrongSide();
 //                staff.sys.stems.addStem(this);  this is a bug,stem is added in stemHead()
 
                 addReaction(new Reaction("E-E") {
@@ -708,6 +723,45 @@ public class Music1 extends Window {
                 staff.sys.stems.remove(this);
                 this.deleteMass();
             }
+
+            public static Stem getStem(Staff staff,Time time,int y1,int y2,boolean up){
+                ArrayList<Head> heads = new ArrayList<>();
+                for(Head h:time.heads){
+                    int yH = h.y();
+                    if(yH > y1 && yH < y2){
+                        heads.add(h);
+                    }
+                }
+                if(heads.size() == 0){
+                    return null;
+                }
+                Beam beam = internalStem(staff.sys,time.x,y1,y2);
+                Stem res = new Stem(staff,heads,up);
+                if(beam != null){
+                    beam.addStem(res);
+                    res.nFlag = 1;
+                }
+                return res;
+            }
+
+            public static Beam internalStem(Sys sys,int x,int y1,int y2){
+                for(Stem s: sys.stems){
+                    if(s.beam != null && s.x()< x && s.ylow()<y2 && s.yHi() > y1){
+                        int bX = s.beam.first().x(),bY = s.beam.first().yBeamEnd();
+                        int eX = s.beam.last().x(),eY = s.beam.last().yBeamEnd();
+                        if(Beam.verticalLineCrossesSegment(x,y1,y2,bX,bY,eX,eY)){
+                            return s.beam;
+                        }
+                    }
+                }
+                return null;
+
+
+            }
+
+
+
+
 
             public void show(Graphics g) {
                 if (nFlag > -2 && heads.size() > 0) {
@@ -799,6 +853,43 @@ public class Music1 extends Window {
         public static class Beam extends Mass{
 
             public Stem.List stems = new Stem.List();
+            public static Polygon poly;
+            static{int[] foo = {0,0,0,0};poly = new Polygon(foo,foo,4);}
+
+            public static void drawBeamStack(Graphics g,int n1,int n2,int x1,int x2,int h){
+                int y1 = yOfX(x1),y2 = yOfX(x2);
+                for (int i = n1; i < n2; i++) {
+                    setPoly(x1,y1+i*2*h,x2,y2+i*2*h,h);
+                    g.fillPolygon(poly);
+                }
+            }
+
+            public void addStem(Stem s){
+                if(s.beam == null){
+                    stems.add(s);
+                    s.beam = this;
+                    stems.sort();
+                }
+            }
+
+            public static Boolean verticalLineCrossesSegment(int x,int y1,int y2,int bX,int bY,int eX,int eY){
+                if(x<bX || x>eX){
+                    return false;
+                }
+                int y = yOfX(x,bX,bY,eX,eY);
+                if(y1 < y2 ){
+                    return y1 < y && y < y2;
+                }else{
+                    return y2 < y && y < y1;
+                }
+            }
+
+            public static void setPoly(int x1,int y1,int x2,int y2,int h){
+                int[] a = poly.xpoints;
+                a[0] = x1;a[1] = x2;a[2] = x2;a[3] = x1;
+                a = poly.ypoints;
+                a[0] = y1;a[1] = y2;a[2] = y2+h;a[3] = y1+h;
+            }
 
             public Beam(Stem s1,Stem s2){
                 super("NOTE");
@@ -846,6 +937,39 @@ public class Music1 extends Window {
 
             @Override
             public void show(Graphics g) {
+                drawBeamGroup(g);
+            }
+
+            public void drawBeamGroup(Graphics g){
+                setMasterBeam();
+                Stem s1 = first(),s2 = last();
+                int h = s1.staff.H(),sH = s1.isUp ? h:-h;
+                int nPrev = 0,nCurr = s1.nFlag,nNext = stems.get(1).nFlag;
+                int pX, cX = s1.x();
+                int bX = 3*h+cX;
+                //Draw Beamlet on first Stem
+                if(nCurr > nNext){
+                    drawBeamStack(g,nNext,nCurr,cX,bX,sH);
+                }
+                for(int cur = 1;cur<stems.size();cur++){
+                    Stem sCurr = stems.get(cur);
+                    pX = cX;
+                    cX = sCurr.x();
+                    nPrev = nCurr;
+                    nCurr = nNext;
+                    nNext = (cur < stems.size()-1) ? stems.get(cur+1).nFlag:0;
+                    int nBack = Math.min(nPrev,nCurr);
+                    drawBeamStack(g,0,nBack,pX,cX,sH);//full Beams from prev to curr
+                    if(nCurr > nPrev && nCurr > nNext){
+                        if(nPrev < nNext){
+                            bX = cX+3*h;
+                            drawBeamStack(g,nNext,nCurr,cX,bX,sH);
+                        }else{
+                            bX = cX-3*h;
+                            drawBeamStack(g,nPrev,nCurr,bX,cX,sH);
+                        }
+                    }
+                }
 
             }
 
