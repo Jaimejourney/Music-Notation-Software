@@ -9,6 +9,7 @@ import marlin.graphicsLib.Window;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.stream.Stream;
@@ -112,6 +113,52 @@ public class Music1 extends Window {
                 SYSTEMS.add(this);
                 makeStaffMatchSysFmt();
                 times = new Time.List(this);
+                addReaction(new Reaction("E-E") {
+                    @Override
+                    public int bid(Gesture g) {
+                        int x1 = g.vs.xLow();
+                        int y1 = g.vs.loy();
+                        int x2 = g.vs.xHi();
+                        int y2 = g.vs.hiy();
+                        if(stems.fastReject(y1,y2)){
+                            return UC.noBid;
+                        }
+                        ArrayList<Stem> tempArr = stems.allInterSectors(x1,y1,x2,y2);
+                        if(tempArr.size()<2){
+                            return UC.noBid;
+                        }
+                        Beam b = tempArr.get(0).beam;
+                        for(Stem s:tempArr){
+                            if(s.beam != b){
+                                return UC.noBid;
+                            }
+                        }
+                        if(b == null && tempArr.size() != 2){
+                            return UC.noBid;
+                        }
+                        if(b == null && (tempArr.get(0).nFlag!=0 || tempArr.get(1).nFlag!=0)){
+                            return UC.noBid;
+                        }
+                        return 50;
+                    }
+
+                    @Override
+                    public void act(Gesture g) {
+                        int x1 = g.vs.xLow();
+                        int y1 = g.vs.loy();
+                        int x2 = g.vs.xHi();
+                        int y2 = g.vs.hiy();
+                        ArrayList<Stem> tempArr = stems.allInterSectors(x1,y1,x2,y2);
+                        Beam b = tempArr.get(0).beam;
+                        if(b == null){
+                            new Beam(tempArr.get(0),tempArr.get(1));
+                        }else{
+                            for(Stem s:tempArr){
+                                s.incFlag();
+                            }
+                        }
+                    }
+                });
             }
 
             public Time getTime(int x) { return times.getTime(x); }
@@ -570,7 +617,7 @@ public class Music1 extends Window {
                         int w = Head.this.W();
                         boolean up = x > time.x + w/2;
                         if (Head.this.stem == null) {
-                            time.stemHeads(staff, up, y1, y2);
+                            Stem.getStem(staff,time,y1,y2,up);
                         } else {
                             time.unStemHeads(y1, y2);
                         }
@@ -583,8 +630,11 @@ public class Music1 extends Window {
                         int xH = Head.this.x(), yH =Head.this.y(), h = Head.this.staff.H(), w = Head.this.W();
                         int x = g.vs.midx(), y = g.vs.midy();
                         if(x < xH || x > xH + 2*w || y < yH - h || y > yH + h){
+                            System.out.println("Stem: " + Head.this.stem + " no Bid");
                             return UC.noBid;
                         }
+                        System.out.println("xH: "+ xH + " x: " + x + " w: " + w);
+                        System.out.println("Stem: " + Head.this.stem + "win");
                         return Math.abs(xH + w - x) + Math.abs(yH - y);
                     }
 
@@ -597,6 +647,7 @@ public class Music1 extends Window {
 
             public void show(Graphics g) {
                 int h = staff.H();
+                g.setColor(stem == null ? Color.red:Color.BLACK);
 //                Glyph.HEAD_Q.showAt(g, h, time.x, line*h + staff.yTop());
                 (forcedGlyph != null? forcedGlyph: normalGlyph()).showAt(g, h, x(), y());
                 if(stem != null){
@@ -607,17 +658,12 @@ public class Music1 extends Window {
                 }
             }
 
-//            public void joinStem(Stem s) {
-//                unStem();
-//                s.heads.add(this);
-//                stem = s;
-//            }
-
             public void unStem() {
                 if (stem == null) { return; }
                 stem.heads.remove(this);
-                if(stem.heads.size() == 0) {stem.deletemStem();}
+                if(stem.heads.size() == 0) {stem.deleteStem();}
                 stem = null;
+                wrongSide = false;
             }
 
             public int x() {
@@ -719,10 +765,15 @@ public class Music1 extends Window {
                 return x() - stem.x();
             }
 
-            public void deletemStem(){
+            public void deleteStem(){// only call if heads is empty
+                if(heads.size() != 0){System.out.println("wtf? - deleting stem that had heads on it");}
                 staff.sys.stems.remove(this);
+                if(beam != null){beam.removeStem(this);}
+                //System.out.println("Deleting "+this);
                 this.deleteMass();
             }
+
+
 
             public static Stem getStem(Staff staff,Time time,int y1,int y2,boolean up){
                 ArrayList<Head> heads = new ArrayList<>();
@@ -755,19 +806,12 @@ public class Music1 extends Window {
                     }
                 }
                 return null;
-
-
             }
-
-
-
-
-
             public void show(Graphics g) {
                 if (nFlag > -2 && heads.size() > 0) {
                     int x = x(), yH = yFirstHead(), yB = yBeamEnd(),h = staff.H();
                     g.drawLine(x, yH, x, yB);
-                    if(nFlag > 0){
+                    if(nFlag > 0 && beam == null){
                         if(nFlag == 1){(isUp ? Glyph.FLAG1D : Glyph.FLAG1U).showAt(g,h,x,yB);}
                         if(nFlag == 2){(isUp ? Glyph.FLAG2D : Glyph.FLAG2U).showAt(g,h,x,yB);}
                         if(nFlag == 3){(isUp ? Glyph.FLAG3D : Glyph.FLAG3U).showAt(g,h,x,yB);}
@@ -790,25 +834,36 @@ public class Music1 extends Window {
             public int yHi(){return isUp? yFirstHead():yBeamEnd();}
 
             public int yFirstHead() {
+                if(heads.size() ==0) return 100;
                 Head h = firstHead();
                 return h.staff.yLine(h.line);
             }
 
             public int x() {
+                if(heads.size() == 0){return 100;}
                 Head h = firstHead();
                 return h.time.x + (isUp? h.W(): 0);
             }
 
             public int yBeamEnd() {
-                Head h = lastHead();
-                int line = h.line;
-                line += isUp? -7: 7;
-                int flagInc = nFlag > 2? 2*(nFlag-2): 0;
-                line += isUp? -flagInc: flagInc;
-                if ((isUp && line > 4) || (!isUp && line < 4)) {
-                    line = 4;
+                if(heads.size() == 0){
+                    return 100;
                 }
-                return staff.yLine(line);
+                if(beam == null || beam.first() == this || beam.last() == this){
+                    Head h = lastHead();
+                    int line = h.line;
+                    line += isUp? -7: 7;
+                    int flagInc = nFlag > 2? 2*(nFlag-2): 0;
+                    line += isUp? -flagInc: flagInc;
+                    if ((isUp && line > 4) || (!isUp && line < 4)) {
+                        line = 4;
+                    }
+                    return staff.yLine(line);
+                }else{
+                    beam.setMasterBeam();
+                    return Beam.yOfX(x());
+                }
+
             }
 
             public void setWrongSide() {
@@ -839,10 +894,29 @@ public class Music1 extends Window {
                     add(s);
                     int yF = s.yFirstHead(), yB = s.yBeamEnd();
                     if(yF < yMin){ yMin = yF;}
-                    if(yF > yMax){ yMax = yB;}
+                    if(yF > yMax){ yMax = yF;}
                     if(yB < yMin){ yMin = yB;}
                     if(yB > yMax){ yMax = yB;}
                 }
+
+                public boolean fastReject(int y1,int y2){
+                    //making sure it is in the range
+                    return y1 > yMax || y2 < yMin;
+                }
+
+                public ArrayList<Stem> allInterSectors(int x1,int y1,int x2,int y2){
+                    ArrayList<Stem> res = new ArrayList<Stem>();
+                    for(Stem s:this){
+                        int x = s.x();
+                        int y = Beam.yOfX(x,x1,y1,x2,y2);
+                        if(x > x1 && x < x2 && y> s.ylow() && y < s.yHi()){
+                            res.add(s);
+                        }
+                    }
+                    System.out.println("InterSectors: " + res.size());
+                    return res;
+                }
+
                 public void sort(){
                     Collections.sort(this);
                 }
@@ -872,6 +946,15 @@ public class Music1 extends Window {
                 }
             }
 
+            public void removeStem(Stem s){
+                if(s == first() || s == last()){
+                    this.deleteBeam();
+                }else{
+                    stems.remove(s);
+                    stems.sort();
+                }
+            }
+
             public static Boolean verticalLineCrossesSegment(int x,int y1,int y2,int bX,int bY,int eX,int eY){
                 if(x<bX || x>eX){
                     return false;
@@ -895,6 +978,10 @@ public class Music1 extends Window {
                 super("NOTE");
                 stems.addStem(s1);
                 stems.addStem(s2);
+                s1.nFlag =1;
+                s2.nFlag =1;
+                s1.beam = this;
+                s2.beam = this;
                 stems.sort();
             }
 
