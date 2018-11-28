@@ -20,7 +20,6 @@ public class Glyph{
     public static Glyph HEAD_W = new Glyph((char)61484, 16, 0, 7);
     public static Glyph HEAD_Q = new Glyph((char)61486, 16, 0, 7);
 
-
     public static Glyph FLAG1D = new Glyph((char)61487, 16, 0, 8);
     public static Glyph FLAG1U = new Glyph((char)61488, 16, 0, 1);
     public static Glyph FLAG2D = new Glyph((char)61489, 16, 0, 8);
@@ -60,7 +59,7 @@ public class Glyph{
         g.setFont(theFont);
         g.drawString(""+code, x + (int)Math.floor(dx*H), y + (int)Math.floor(dy*H));
 //        g.setColor(Color.RED);
-//        g.drawRect(x, y, H, H);
+//        g.drawRect(xStem, y, H, H);
         g.setFont(f); // restore old font
     }
 }

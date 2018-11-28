@@ -1,15 +1,14 @@
 package marlin.sandbox;
 
 import marlin.graphicsLib.I;
-import marlin.music.Glyph;
 import marlin.Reaction.*;
 import marlin.graphicsLib.UC;
 import marlin.graphicsLib.G;
 import marlin.graphicsLib.Window;
+import marlin.music.Glyph;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.stream.Stream;

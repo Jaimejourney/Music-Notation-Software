@@ -1,8 +1,10 @@
 package marlin.graphicsLib;
 
 import marlin.Reaction.Gesture;
+import marlin.music.Sys;
 
 import java.awt.*;
+import java.util.ArrayList;
 
 public interface I {
     public interface Show{
@@ -22,5 +24,23 @@ public interface I {
     }
     public interface React extends Act {
         public int bid(Gesture g);
+    }
+
+    public interface Margin{
+        public int top();
+        public int bot();
+        public int left();
+        public int right();
+    }
+
+    public interface Page extends Margin{
+        public Sys.Fmt sysfmt();
+        public ArrayList<Sys> systems();
+    }
+
+    public interface MusicApp{
+        public ArrayList<Page> pages();
+        public Sys.Fmt sysfmt(Page page);
+        public ArrayList<Sys> systems(Page page);
     }
 }
